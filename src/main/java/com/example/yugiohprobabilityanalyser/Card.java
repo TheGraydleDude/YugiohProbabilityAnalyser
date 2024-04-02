@@ -92,4 +92,36 @@ public class Card {
     public String getName() {
         return name;
     }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getDesc() {
+        return desc;
+    }
+
+    public String getRace() {
+        return race;
+    }
+
+    public int getAtk() {
+        return atk;
+    }
+
+    public int getDef() {
+        return def;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public String getAttribute() {
+        return attribute;
+    }
+
+    public int getScale() {
+        return scale;
+    }
 }
