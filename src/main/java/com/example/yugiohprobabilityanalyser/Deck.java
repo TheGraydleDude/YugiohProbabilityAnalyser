@@ -163,17 +163,17 @@ public class Deck {
     private void downloadCards(HashMap<Card, Integer> deck) {
         try {
             for (Card card : deck.keySet()) {
-                String cardNameNoQuotes = card.getName().replaceAll("\"", "");
-                if (!new File("src\\images\\" + cardNameNoQuotes + ".jpg").exists()) {
+                String cardNameNoQuotesNoSlash = card.getName().replaceAll("\"", "").replaceAll("/", "");
+                if (!new File("src\\images\\" + cardNameNoQuotesNoSlash + ".jpg").exists()) {
                     HttpClient client = HttpClient.newHttpClient();
                     HttpRequest request = HttpRequest.newBuilder()
                             .uri(URI.create("https://images.ygoprodeck.com/images/cards_small/" + card.getId() + ".jpg"))
                             .build();
                     Image img = new Image(client.send(request, HttpResponse.BodyHandlers.ofInputStream()).body());
-                    ImageIO.write(SwingFXUtils.fromFXImage(img, null), "jpg", new File("src\\images\\" + cardNameNoQuotes + ".jpg"));
+                    ImageIO.write(SwingFXUtils.fromFXImage(img, null), "jpg", new File("src\\images\\" + cardNameNoQuotesNoSlash + ".jpg"));
                     card.setCardImg(img);
                 } else {
-                    card.setCardImg(SwingFXUtils.toFXImage(ImageIO.read(new File("src\\images\\" + cardNameNoQuotes + ".jpg")), null));
+                    card.setCardImg(SwingFXUtils.toFXImage(ImageIO.read(new File("src\\images\\" + cardNameNoQuotesNoSlash + ".jpg")), null));
                 }
             }
         } catch (IOException | InterruptedException i) {

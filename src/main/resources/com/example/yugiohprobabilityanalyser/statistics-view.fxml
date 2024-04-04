@@ -69,6 +69,7 @@
                             <Button text="Desired" onAction="#onDesiredButtonPress"/>
                             <Button text="Undesired" onAction="#onUndesiredButtonPress"/>
                         </HBox>
+                        <Button text="Clear" onAction="#onClearButtonPress"/>
                     </VBox>
                     <VBox spacing="5.0">
                         <Label text="Desired Cards" style="-fx-font-size: 12;-fx-font-weight: bold;"/>
@@ -85,7 +86,7 @@
                 </HBox>
                 <AnchorPane>
                     <ComboBox fx:id="turnSelector" AnchorPane.leftAnchor="0.0" prefWidth="150"/>
-                    <Button AnchorPane.rightAnchor="0.0" text="Calculate"/>
+                    <Button AnchorPane.rightAnchor="0.0" text="Calculate" onAction="#onCalculateButtonPress"/>
                 </AnchorPane>
             </VBox>
         </VBox>

@@ -1,5 +1,6 @@
 package com.example.yugiohprobabilityanalyser;
 
+import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.Event;
 import javafx.fxml.FXML;
@@ -143,30 +144,32 @@ public class StatisticsView {
             if (numToAdd.isPresent()) {
                 if (listSelector.getValue() != null) {
                     if (userInputIsInteger(numToAdd.get())) {
-                        //So we don't exceed the number of cards we are playing
-                        int numInMain = 0;
-                        int numInSide = 0;
-                        int numInListAlready = 0;
-                        if (model.getMainDeck().containsKey(cardSelected)) {
-                            numInMain = model.getMainDeck().get(cardSelected);
-                        }
-                        if (model.getSideDeck() != null) {
-                            if (model.getSideDeck().containsKey(cardSelected)) {
-                                numInSide = model.getSideDeck().get(cardSelected);
+                        if (Integer.parseInt(numToAdd.get()) > 0) {
+                            //So we don't exceed the number of cards we are playing
+                            int numInMain = 0;
+                            int numInSide = 0;
+                            int numInListAlready = 0;
+                            if (model.getMainDeck().containsKey(cardSelected)) {
+                                numInMain = model.getMainDeck().get(cardSelected);
                             }
-                        }
-                        if (listOfLists.get(listSelector.getValue()).containsKey(cardSelected)) {
-                            numInListAlready = listOfLists.get(listSelector.getValue()).get(cardSelected);
-                        }
-                        if (Integer.parseInt(numToAdd.get()) + numInListAlready <= numInMain + numInSide) {
-                            listOfLists.get(listSelector.getValue()).put(cardSelected, Integer.parseInt(numToAdd.get()));
-                            for (int i = 0; i < Integer.parseInt(numToAdd.get()); i++) {
-                                Label toAddList = new Label(cardSelected.getName() + "\n");
-                                toAddList.setWrapText(true);
-                                currentList.getChildren().add(toAddList);
+                            if (model.getSideDeck() != null) {
+                                if (model.getSideDeck().containsKey(cardSelected)) {
+                                    numInSide = model.getSideDeck().get(cardSelected);
+                                }
                             }
-                        } else {
-                            userBlankEntry("You do not have this many " + cardSelected.getName() + " in your deck");
+                            if (listOfLists.get(listSelector.getValue()).containsKey(cardSelected)) {
+                                numInListAlready = listOfLists.get(listSelector.getValue()).get(cardSelected);
+                            }
+                            if (Integer.parseInt(numToAdd.get()) + numInListAlready <= numInMain + numInSide) {
+                                listOfLists.get(listSelector.getValue()).put(cardSelected, Integer.parseInt(numToAdd.get()));
+                                for (int i = 0; i < Integer.parseInt(numToAdd.get()); i++) {
+                                    Label toAddList = new Label(cardSelected.getName() + "\n");
+                                    toAddList.setWrapText(true);
+                                    currentList.getChildren().add(toAddList);
+                                }
+                            } else {
+                                userBlankEntry("You do not have this many " + cardSelected.getName() + " in your deck");
+                            }
                         }
                     } else {
                         userBlankEntry("Please make sure you enter just a number");
@@ -251,12 +254,16 @@ public class StatisticsView {
             Optional<String> listName = listNameReq.showAndWait();
             if (listName.isPresent()) {
                 if (listName.get().length() <= 8) {
-                    if (listOfLists.get(listName.get()) == null) {
-                        listOfLists.put(listName.get(), new HashMap<>());
-                        addToListComboBoxes(listName.get());
-                        listSelector.setValue(listName.get());
+                    if (!listName.get().contains("\"")) {
+                        if (listOfLists.get(listName.get()) == null) {
+                            listOfLists.put(listName.get(), new HashMap<>());
+                            addToListComboBoxes(listName.get());
+                            listSelector.setValue(listName.get());
+                        } else {
+                            userBlankEntry("That list already exists!");
+                        }
                     } else {
-                        userBlankEntry("That list already exists!");
+                        userBlankEntry("The character \" is not allowed");
                     }
                 } else {
                     userBlankEntry("Please make your list name 8 characters maximum");
@@ -295,6 +302,8 @@ public class StatisticsView {
             if (buttonType.get() == ButtonType.OK) {
                 listOfLists.remove(listSelector.getValue());
                 removeFromBothComboBoxes(listSelector.getValue());
+                desiredCards.getChildren().clear();
+                undesiredCards.getChildren().clear();
                 //To update currentList
                 onListSelectorPress();
             }
@@ -317,6 +326,179 @@ public class StatisticsView {
     @FXML
     public void onUndesiredButtonPress() {
         undesiredAndDesiredCards(false);
+    }
+
+    /*
+        pre:  clear button pressed
+        post: desiredCards and undesiredCards empty
+     */
+    @FXML
+    public void onClearButtonPress() {
+        desiredCards.getChildren().clear();
+        undesiredCards.getChildren().clear();
+    }
+
+    /*
+        pre:  calculate button pressed
+        post:
+     */
+    @FXML
+    public void onCalculateButtonPress() {
+        HashMap<HashMap<Card, Integer>, Integer> desiredHashMap = getDesiredUndesiredData(desiredCards.getChildren());
+        HashMap<HashMap<Card, Integer>, Integer> undesiredHashMap = getDesiredUndesiredData(undesiredCards.getChildren());
+
+        if (desiredHashMap.size() > 0 || undesiredHashMap.size() > 0) {
+            int numOfCardsInHand = 5;
+            if (turnSelector.getValue().equals("Going Second")) {
+                numOfCardsInHand = 6;
+            }
+
+            int numOfDesired = desiredHashMap.values().stream().reduce(0, Integer::sum);
+            //Checking that number of cards in hand and number of cards in deck are valid
+            if (numOfDesired <= numOfCardsInHand && model.getMainDeck().values().stream().reduce(0, Integer::sum) - undesiredHashMap.values().stream().reduce(0, Integer::sum) >= numOfCardsInHand) {
+
+                //Checking that there are no duplicate cards or lists
+                if (!Collections.disjoint(desiredHashMap.keySet(), undesiredHashMap.keySet())) {
+                    userBlankEntry("You cannot have the same list in desired and undesired");
+                    return;
+                }
+
+                Set<HashMap<Card, Integer>> hashSet = new HashSet<>();
+                hashSet.addAll(desiredHashMap.keySet());
+                hashSet.addAll(undesiredHashMap.keySet());
+                Set<Card> cardSet = new HashSet<>();
+                for (HashMap<Card, Integer> list : hashSet) {
+                    if (!Collections.disjoint(cardSet, list.keySet())) {
+                        userBlankEntry("You cannot have the same card in 2 different lists");
+                        return;
+                    }
+                    cardSet.addAll(list.keySet());
+                }
+
+                double probabilityOfDesired = calculateProb(desiredHashMap,numOfCardsInHand, numOfCardsInHand);
+                double probabilityOfUndesiredGivenDesired = calculateProb(undesiredHashMap, model.getMainDeck().size() - numOfCardsInHand - numOfDesired, model.getMainDeck().size() -numOfCardsInHand - numOfDesired);
+                /*
+                    P(A n B) = P(A | B) * P(B)
+                 */
+                double totalProbability = probabilityOfUndesiredGivenDesired * probabilityOfDesired;
+                if (totalProbability > 0) {
+                    Alert probabilityPopUp = new Alert(Alert.AlertType.INFORMATION);
+
+                    probabilityPopUp.setTitle("Probability");
+                    probabilityPopUp.setHeaderText("Result");
+                    probabilityPopUp.setContentText("The probability of opening a hand like the one you specified is: " + totalProbability);
+
+                    if (desiredHashMap.size() > 0) {
+                        Set<HashMap<Card, Integer>> hashMapSet = desiredHashMap.keySet();
+                        Set<Card> listSet = hashMapSet.iterator().next().keySet();
+                        ImageView cardView = new ImageView(listSet.iterator().next().getCardImg());
+                        cardView.setFitWidth(50);
+                        cardView.setPreserveRatio(true);
+                        probabilityPopUp.setGraphic(cardView);
+                    } else {
+                        try {
+                            ImageView cardView = new ImageView(SwingFXUtils.toFXImage(ImageIO.read(new File("src\\images\\CardBack.png")), null));
+                            cardView.setFitWidth(50);
+                            cardView.setPreserveRatio(true);
+                            probabilityPopUp.setGraphic(cardView);
+                        } catch (IOException i) {
+                            error("IO error", i);
+                        } catch (Exception e) {
+                            error("Unknown error occurred", e);
+                        }
+                    }
+
+                    probabilityPopUp.show();
+                }
+
+            }
+        }
+    }
+
+    /*
+        pre:  calculate button pressed
+        post: probability calculated
+     */
+    private double calculateProb(HashMap<HashMap<Card, Integer>, Integer> listsInA, int handSize, int adjustedHandSize) {
+        /*
+            P(A | B) = P(A n B) / P(B)
+            P(A n B) = P(A | B) * P(B)
+
+            Say we have:
+            1x list A
+            2x list B
+            1x list C
+
+            so we do P((A n B) n C) = P((A n B) | C) * P(C)
+            = P((A n B) | C) * hypergeometric dist. for C
+            P((A n B) | C) = P(A n B) where hand size = hand size - 1 and deck size = deck size - 1
+            P(A n B) where (hs = hs-1, ds = ds-1) = P(A | B) * P(B)
+            = P(A | B) * P(B) where (hs = hs-1, ds = ds-1)
+            P(A | B) where (hs = hs-1, ds = ds-1)
+            = P(A) where (hs = hs-3, ds = ds-3)
+
+            So can we do some recursive thing?
+            P(A n B) calculated by:
+            calculateProb(All lists in A, B, handsize):
+                if(B is null):
+                    return hypergeometric(A)
+                else:
+                    return (calculateProb(All lists in A / new B, new B, handsize - B.size) * hypergeometric(B))
+         */
+        HashMap<Card, Integer> B = listsInA.keySet().iterator().next();
+        int numOfB = listsInA.get(B);
+        listsInA.remove(B);
+        if (listsInA.isEmpty()) {
+            /*
+                Looks complicated but not:
+                popSize is the number of cards in the main deck - the amount adjusted by the handSize changing
+                sampleSize is the adjustedHandSize
+                successesInPop is the size of the list
+                successesInHand is the expected number of cards
+             */
+            return hypergeometric(model.getMainDeck().values().stream().reduce(0, Integer::sum) - (handSize - adjustedHandSize), adjustedHandSize, B.values().stream().reduce(0, Integer::sum), numOfB);
+        } else {
+            return (calculateProb(listsInA, handSize, handSize-numOfB) * hypergeometric(model.getMainDeck().values().stream().reduce(0, Integer::sum) - (handSize - adjustedHandSize), adjustedHandSize, B.values().stream().reduce(0, Integer::sum), numOfB));
+        }
+    }
+
+    /*
+        Implementation of the hypergeometric formula
+     */
+    private double hypergeometric(int popSize, int sampleSize, int successesInPop, int successesInSample) {
+        return (double) (binomial(successesInPop, successesInSample) * binomial(popSize - successesInPop, sampleSize - successesInSample)) / (double) (binomial(popSize, sampleSize));
+    }
+
+    /*
+        Implementation of the binomial coefficient function
+     */
+    private static long binomial(int n, int k) {
+        if (k > n - k)
+            k = n - k;
+
+        long b = 1;
+        for (int i = 1, m = n; i <= k; i++, m--)
+            b = b * m / i;
+        return b;
+    }
+
+    /*
+        pre:  calculate button pressed
+        post: data from the desired/undesired labels are fetched
+     */
+    private HashMap<HashMap<Card, Integer>, Integer> getDesiredUndesiredData(ObservableList<Node> labels) {
+        HashMap<HashMap<Card, Integer>, Integer> toReturn = new HashMap<>();
+
+        if (labels != null) {
+            for (Node label : labels) {
+                String labelText = ((Label) label).getText();
+                int numOfCards = Integer.parseInt(labelText.split("x")[0]);
+                String listName = labelText.split("\"")[1];
+                toReturn.put(listOfLists.get(listName), numOfCards);
+            }
+        }
+
+        return toReturn;
     }
 
     /*
