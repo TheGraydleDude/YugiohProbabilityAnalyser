@@ -1,5 +1,6 @@
 package com.example.yugiohprobabilityanalyser;
 
+import javafx.scene.image.Image;
 import org.json.JSONObject;
 
 public class Card {
@@ -8,6 +9,7 @@ public class Card {
     private String type;
     private String desc;
     private String race;
+    private Image cardImg;
 
     //For monsters only. All numerical values are > 0 so initialising to -1 for non-monsters
     private int atk = -1;
@@ -85,6 +87,11 @@ public class Card {
         }
     }
 
+    @Override
+    public String toString(){
+        return name;
+    }
+
     public int getId() {
         return id;
     }
@@ -123,5 +130,13 @@ public class Card {
 
     public int getScale() {
         return scale;
+    }
+
+    public Image getCardImg() {
+        return cardImg;
+    }
+
+    public void setCardImg(Image cardImg) {
+        this.cardImg = cardImg;
     }
 }

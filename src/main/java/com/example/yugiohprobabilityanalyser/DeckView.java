@@ -1,5 +1,6 @@
 package com.example.yugiohprobabilityanalyser;
 
+import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -12,7 +13,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -64,7 +64,12 @@ public class DeckView {
             stage.setScene(new Scene(loader.load()));
             //Have to do it this order (must load first)
             StatisticsView statisticsController = loader.getController();
-            statisticsController.initData(model);
+
+            GridPane sideDeckNull = null;
+            if(sideDeckPane != null){
+                sideDeckNull = sideDeckPane;
+            }
+            statisticsController.initData(model, mainDeckPane, sideDeckNull);
             stage.show();
 
         } catch (NullPointerException n) {
@@ -118,17 +123,22 @@ public class DeckView {
         post: the individual button/label combination is created for x card
      */
     private VBox createCardLayout(Card card) {
-        //This won't be null unless the file is deleted, in which case the Button will just be blank
-        Image cardBack = new Image(getClass().getResourceAsStream("CardBack.png"));
-        ImageView view = new ImageView(cardBack);
-        view.setFitWidth(90);
-        view.setPreserveRatio(true);
         Button cardFrame = new Button();
-        cardFrame.setGraphic(view);
         cardFrame.setOnAction(e -> displayCardInfo(card));
+        try{
+            Image cardArt = card.getCardImg();
+            ImageView view = new ImageView(cardArt);
+            view.setFitWidth(90);
+            view.setPreserveRatio(true);
+            cardFrame.setGraphic(view);
+        } catch (Exception e){
+            //If the file is missing, using error would create 40+ error pop-ups, so I would just rather print this and have empty buttons
+            e.printStackTrace();
+        }
 
         Label cardName = new Label(card.getName());
         cardName.setMaxWidth(90);
+        cardName.setWrapText(true);
         return new VBox(cardFrame, cardName);
     }
 
@@ -139,11 +149,16 @@ public class DeckView {
     private void displayCardInfo(Card card) {
         Alert cardInfo = new Alert(Alert.AlertType.INFORMATION);
 
-        Image cardBack = new Image(getClass().getResourceAsStream("CardBack.png"));
-        ImageView view = new ImageView(cardBack);
-        view.setFitHeight(50);
-        view.setPreserveRatio(true);
-        cardInfo.setGraphic(view);
+        try{
+            Image cardArt = card.getCardImg();
+            ImageView view = new ImageView(cardArt);
+            view.setFitWidth(50);
+            view.setPreserveRatio(true);
+            cardInfo.setGraphic(view);
+        } catch (Exception e){
+            //If the file is missing, using error would create 40+ error pop-ups, so I would just rather print this and have empty buttons
+            e.printStackTrace();
+        }
 
         cardInfo.setTitle(card.getName());
         cardInfo.setHeaderText(card.getName());
@@ -164,7 +179,7 @@ public class DeckView {
       pre:  Error message to be displayed and Exception variable thrown from error
       post: Prints the error message and the stack trace of the exception variable
      */
-    public void error(String errorMessage, Exception e) {
+    private void error(String errorMessage, Exception e) {
         new Alert(Alert.AlertType.ERROR, errorMessage).show();
         e.printStackTrace();
     }

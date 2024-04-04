@@ -50,7 +50,7 @@ public class HelloController {
       pre:  Error message to be displayed and Exception variable thrown from error
       post: Prints the error message and the stack trace of the exception variable
      */
-    public void error(String errorMessage, Exception e) {
+    private void error(String errorMessage, Exception e) {
         new Alert(Alert.AlertType.ERROR, errorMessage).show();
         e.printStackTrace();
     }

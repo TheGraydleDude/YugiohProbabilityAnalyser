@@ -1,14 +1,93 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.example.yugiohprobabilityanalyser.StatisticsView"
-            prefHeight="400.0" prefWidth="600.0">
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.shape.Line?>
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.example.yugiohprobabilityanalyser.StatisticsView"
+      prefHeight="450.0" prefWidth="700.0">
+    <padding>
+        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
+    </padding>
 
-</AnchorPane>
+    <AnchorPane>
+        <Button AnchorPane.leftAnchor="0.0" text="Back" onAction="#onBackButtonPress"/>
+        <Button AnchorPane.rightAnchor="0.0" text="Help" alignment="TOP_RIGHT" onAction="#onHelpButtonPress"/>
+    </AnchorPane>
+
+    <HBox spacing="5.0">
+        <VBox>
+            <Label text="Main Deck"/>
+            <ScrollPane prefHeight="200" prefWidth="350" fx:id="mainDeckPane">
+                <padding>
+                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
+                </padding>
+
+            </ScrollPane>
+
+            <Label text="Side Deck"/>
+            <ScrollPane prefHeight="200" prefWidth="350" fx:id="sideDeckPane">
+                <padding>
+                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
+                </padding>
+            </ScrollPane>
+        </VBox>
+        <VBox spacing="5.0" prefWidth="345">
+            <Label text="Probability Calculator" style="-fx-font-size: 20;" alignment="TOP_CENTER"/>
+            <HBox spacing="5.0">
+                <VBox spacing="5.0">
+                    <Label text="Cards"/>
+                    <ComboBox fx:id="cardSelector" prefWidth="100"/>
+                    <HBox spacing="10.0">
+                        <Button text="Add" onAction="#onAddButtonPress"/>
+                        <Button text="Remove" onAction="#onRemoveButtonPress"/>
+                    </HBox>
+                    <Label text="Lists"/>
+                    <ComboBox fx:id="listSelector" prefWidth="100" onAction="#onListSelectorPress"/>
+                    <HBox spacing="10">
+                        <Button text="New List" onAction="#onNewListButtonPress"/>
+                        <Button text="Remove List" onAction="#onRemoveListButtonPress"/>
+                    </HBox>
+                </VBox>
+                <VBox>
+                    <Label text="Current List" style="-fx-font-size: 12;-fx-font-weight: bold;"/>
+                    <ScrollPane>
+                        <VBox fx:id="currentList" prefHeight="175" prefWidth="175"/>
+                    </ScrollPane>
+                </VBox>
+            </HBox>
+            <Line startX="425" endX="750"/>
+            <VBox spacing="5.0">
+                <HBox>
+                    <VBox spacing="5.0">
+                        <Label text="Lists to add"/>
+                        <ComboBox fx:id="listSelectorInCalculator" prefWidth="100"/>
+                        <HBox spacing="5.0">
+                            <Button text="Desired" onAction="#onDesiredButtonPress"/>
+                            <Button text="Undesired" onAction="#onUndesiredButtonPress"/>
+                        </HBox>
+                    </VBox>
+                    <VBox spacing="5.0">
+                        <Label text="Desired Cards" style="-fx-font-size: 12;-fx-font-weight: bold;"/>
+                        <ScrollPane>
+                            <VBox fx:id="desiredCards" prefHeight="100" prefWidth="100"/>
+                        </ScrollPane>
+                    </VBox>
+                    <VBox spacing="5.0">
+                        <Label text="Undesired Cards" style="-fx-font-size: 12;-fx-font-weight: bold;"/>
+                        <ScrollPane>
+                            <VBox fx:id="undesiredCards" prefHeight="100" prefWidth="100"/>
+                        </ScrollPane>
+                    </VBox>
+                </HBox>
+                <AnchorPane>
+                    <ComboBox fx:id="turnSelector" AnchorPane.leftAnchor="0.0" prefWidth="150"/>
+                    <Button AnchorPane.rightAnchor="0.0" text="Calculate"/>
+                </AnchorPane>
+            </VBox>
+        </VBox>
+    </HBox>
+</VBox>

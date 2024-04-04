@@ -1,16 +1,21 @@
 package com.example.yugiohprobabilityanalyser;
 
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.control.Alert;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import javax.imageio.ImageIO;
+import java.io.*;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -33,7 +38,7 @@ public class Deck {
           an array of HashMaps, and the size of the outer ArrayList (3) is quite small so
           there will be little performance difference.
     */
-    public void fillDeck(String fname){
+    public void fillDeck(String fname) {
         int len = fname.length();
         //in case user has selected some file "a.py" and just using substring would throw
         if (len > 4 && fname.substring(len - 4).equals(".ydk")) {
@@ -74,7 +79,7 @@ public class Deck {
                     if (specialChar == '#' || specialChar == '!') {
                         decksCnt++;
                         if (!deck.isEmpty()) {
-                            if(decksCnt == 3){
+                            if (decksCnt == 3) {
                                 mainDeck = createCards(deck);
                             } else {
                                 extraDeck = createCards(deck);
@@ -97,7 +102,7 @@ public class Deck {
                         }
                     }
                 }
-                if(!deck.isEmpty()) {
+                if (!deck.isEmpty()) {
                     sideDeck = createCards(deck);
                 }
             } catch (FileNotFoundException f) {
@@ -112,7 +117,8 @@ public class Deck {
 
     /*
       pre:  A HashMap of Cards and their quantity
-      post: The same HashMap of Cards, but with the appropriate information from the api
+      post: The same HashMap of Cards, but with the appropriate information from the api.
+            Any new card images downloaded
      */
     private HashMap<Card, Integer> createCards(HashMap<Card, Integer> deck) {
         try {
@@ -138,6 +144,7 @@ public class Deck {
                 deck.remove(updatedKey);
                 deck.put(updatedKey, tempQuant);
             }
+            downloadCards(deck);
             return deck;
         } catch (Exception e) {
             error("Unknown error occurred when fetching cards", e);
@@ -146,10 +153,41 @@ public class Deck {
     }
 
     /*
+        pre:  scene initialised
+        post: card images not already downloaded, downloaded from the api and stored in \images folder
+
+        The yugioh api IP bans those who request its api for card images too often, and as such I have to host them locally.
+        This will download an image the first time a user uses that card, which can cause latency when they have a full deck of new cards.
+        However, I can think of no better solution, as downloading 10,000+ images just to use one deck list would be silly
+     */
+    private void downloadCards(HashMap<Card, Integer> deck) {
+        try {
+            for (Card card : deck.keySet()) {
+                String cardNameNoQuotes = card.getName().replaceAll("\"", "");
+                if (!new File("src\\images\\" + cardNameNoQuotes + ".jpg").exists()) {
+                    HttpClient client = HttpClient.newHttpClient();
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(URI.create("https://images.ygoprodeck.com/images/cards_small/" + card.getId() + ".jpg"))
+                            .build();
+                    Image img = new Image(client.send(request, HttpResponse.BodyHandlers.ofInputStream()).body());
+                    ImageIO.write(SwingFXUtils.fromFXImage(img, null), "jpg", new File("src\\images\\" + cardNameNoQuotes + ".jpg"));
+                    card.setCardImg(img);
+                } else {
+                    card.setCardImg(SwingFXUtils.toFXImage(ImageIO.read(new File("src\\images\\" + cardNameNoQuotes + ".jpg")), null));
+                }
+            }
+        } catch (IOException | InterruptedException i) {
+            error("Error downloading images", i);
+        } catch (Exception e) {
+            error("Unknown error occurred", e);
+        }
+    }
+
+    /*
       pre:  Error message to be displayed and Exception variable thrown from error
       post: Prints the error message and the stack trace of the exception variable
      */
-    public void error(String errorMessage, Exception e) {
+    private void error(String errorMessage, Exception e) {
         new Alert(Alert.AlertType.ERROR, errorMessage).show();
         e.printStackTrace();
     }

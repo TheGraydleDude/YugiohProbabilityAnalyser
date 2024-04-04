@@ -1,14 +1,439 @@
 package com.example.yugiohprobabilityanalyser;
 
+import javafx.embed.swing.SwingFXUtils;
+import javafx.event.Event;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+
 public class StatisticsView {
 
     private Deck model;
 
+    private final HashMap<String, HashMap<Card, Integer>> listOfLists = new HashMap<>();
+
+    @FXML
+    private ComboBox<Card> cardSelector;
+
+    @FXML
+    private ComboBox<String> listSelector;
+
+    @FXML
+    private ScrollPane mainDeckPane;
+
+    @FXML
+    private ScrollPane sideDeckPane;
+
+    @FXML
+    private VBox currentList;
+
+    @FXML
+    private ComboBox<String> listSelectorInCalculator;
+
+    @FXML
+    private VBox desiredCards;
+
+    @FXML
+    private VBox undesiredCards;
+
+    @FXML
+    private ComboBox<String> turnSelector;
+
+
     /*
         pre:  scene initialised
-        post: model set to the deck passed
+        post: model set to the deck passed, scrollpanes filled, combobox filled
      */
-    public void initData(Deck deck){
-        model = deck;
+    public void initData(Deck deck, GridPane mainDeck, GridPane sideDeck) {
+        this.model = deck;
+        this.mainDeckPane.setContent(mainDeck);
+        if (sideDeck != null) {
+            this.sideDeckPane.setContent(sideDeck);
+        }
+        fillCardSelector();
+        turnSelector.getItems().addAll("Going First", "Going Second");
+        turnSelector.setValue("Going First");
+    }
+
+    /*
+        pre:  button is pressed
+        post: we return to the previous scene
+     */
+    @FXML
+    public void onBackButtonPress(Event event) {
+        try {
+            Node node = (Node) event.getSource();
+            Stage stage = (Stage) node.getScene().getWindow();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("deck-view.fxml"));
+            stage.setScene(new Scene(loader.load()));
+            //Have to do it this order (must load first)
+            DeckView deckController = loader.getController();
+            deckController.initData(model);
+            stage.show();
+
+        } catch (NullPointerException n) {
+            System.out.println("File not chosen");
+        } catch (Exception e) {
+            error("Unknown error occurred", e);
+        }
+    }
+
+    /*
+        pre:  help button pressed
+        post: help pop-up displayed
+     */
+    @FXML
+    public void onHelpButtonPress() {
+        Alert help = new Alert(Alert.AlertType.INFORMATION);
+
+        help.setTitle("Help");
+        help.setHeaderText("Help");
+        help.setContentText("To use the calculator, select the card you want and its desired quantity." +
+                "Then, add it to a specific 'list' of similar cards (e.g. 'handtraps'). You can remove cards from a list by pressing the remove button."
+                + "Once you have defined all of your lists, use the equation generator to create your specific conditions"
+                + " (e.g. ('handtraps' AND 2 x 'engine') AND (NOT 'garnets')). Determine whether you are going first or second and then press go!");
+        try {
+            ImageView cardView = new ImageView(SwingFXUtils.toFXImage(ImageIO.read(new File("src\\images\\CardBack.png")), null));
+            cardView.setFitWidth(50);
+            cardView.setPreserveRatio(true);
+            help.setGraphic(cardView);
+        } catch (IOException i) {
+            error("IO error", i);
+        } catch (Exception e) {
+            error("Unknown error occurred", e);
+        }
+
+        help.show();
+    }
+
+    /*
+        pre:  button to add card pressed
+        post: the card, and number of, selected is added to the list selected and displayed in the "current list" tab
+     */
+    @FXML
+    public void onAddButtonPress() {
+        Card cardSelected = cardSelector.getValue();
+        if (cardSelected != null) {
+            TextInputDialog howManyToAdd = new TextInputDialog();
+
+            howManyToAdd.setTitle("Adding Card");
+            howManyToAdd.setHeaderText(cardSelected.getName());
+            ImageView cardView = new ImageView(cardSelected.getCardImg());
+            cardView.setFitWidth(50);
+            cardView.setPreserveRatio(true);
+            howManyToAdd.setGraphic(cardView);
+            howManyToAdd.setContentText("How many " + cardSelected.getName() + "?");
+
+            Optional<String> numToAdd = howManyToAdd.showAndWait();
+            /*
+                The first condition is not true when cancel is pressed, which is why no pop up asking to enter number.
+                All the if statements are just checking valid input
+             */
+            if (numToAdd.isPresent()) {
+                if (listSelector.getValue() != null) {
+                    if (userInputIsInteger(numToAdd.get())) {
+                        //So we don't exceed the number of cards we are playing
+                        int numInMain = 0;
+                        int numInSide = 0;
+                        int numInListAlready = 0;
+                        if (model.getMainDeck().containsKey(cardSelected)) {
+                            numInMain = model.getMainDeck().get(cardSelected);
+                        }
+                        if (model.getSideDeck() != null) {
+                            if (model.getSideDeck().containsKey(cardSelected)) {
+                                numInSide = model.getSideDeck().get(cardSelected);
+                            }
+                        }
+                        if (listOfLists.get(listSelector.getValue()).containsKey(cardSelected)) {
+                            numInListAlready = listOfLists.get(listSelector.getValue()).get(cardSelected);
+                        }
+                        if (Integer.parseInt(numToAdd.get()) + numInListAlready <= numInMain + numInSide) {
+                            listOfLists.get(listSelector.getValue()).put(cardSelected, Integer.parseInt(numToAdd.get()));
+                            for (int i = 0; i < Integer.parseInt(numToAdd.get()); i++) {
+                                Label toAddList = new Label(cardSelected.getName() + "\n");
+                                toAddList.setWrapText(true);
+                                currentList.getChildren().add(toAddList);
+                            }
+                        } else {
+                            userBlankEntry("You do not have this many " + cardSelected.getName() + " in your deck");
+                        }
+                    } else {
+                        userBlankEntry("Please make sure you enter just a number");
+                    }
+                } else {
+                    userBlankEntry("Please choose a list");
+                }
+            }
+        } else {
+            userBlankEntry("Please choose a card first!");
+        }
+    }
+
+    /*
+        pre:  remove button pressed
+        post: the selected card removed from the list and labels
+     */
+    @FXML
+    public void onRemoveButtonPress() {
+        if (cardSelector.getValue() != null) {
+            Alert cardRemoval = new Alert(Alert.AlertType.CONFIRMATION);
+            cardRemoval.setTitle("Removing a Card");
+            cardRemoval.setHeaderText(cardSelector.getValue().getName());
+            cardRemoval.setContentText("Remove all instances of " + cardSelector.getValue().getName() + "?");
+
+            Optional<ButtonType> buttonType = cardRemoval.showAndWait();
+            if (buttonType.get() == ButtonType.OK) {
+                if (listSelector.getValue() != null) {
+                    listOfLists.get(listSelector.getValue()).remove(cardSelector.getValue());
+                    //You have to do it this way to avoid messing up the foreach loop
+                    List<Node> forRemoval = new ArrayList<>();
+                    for (Node label : currentList.getChildren()) {
+                        if (((Label) label).getText().equals(cardSelector.getValue().getName() + "\n")) {
+                            forRemoval.add(label);
+                        }
+                    }
+                    currentList.getChildren().removeAll(forRemoval);
+                } else {
+                    userBlankEntry("Please select a list");
+                }
+            }
+        } else {
+            userBlankEntry("Please select a card");
+        }
+    }
+
+    /*
+        pre:  list chosen changes - either by clicking or by removing a list
+        post: currentList updated with the new list
+     */
+    @FXML
+    public void onListSelectorPress() {
+        currentList.getChildren().clear();
+        if (listSelector.getValue() != null) {
+            for (Card card : listOfLists.get(listSelector.getValue()).keySet()) {
+                for (int i = 0; i < listOfLists.get(listSelector.getValue()).get(card); i++) {
+                    Label toAddList = new Label(card.getName() + "\n");
+                    toAddList.setWrapText(true);
+                    currentList.getChildren().add(toAddList);
+                }
+            }
+        }
+    }
+
+    /*
+        pre:  new list button pressed
+        post: a pop-up is displayed asking for the name of the new list, which is then created
+     */
+    @FXML
+    public void onNewListButtonPress() {
+        try {
+            TextInputDialog listNameReq = new TextInputDialog();
+
+            listNameReq.setTitle("Creating new list");
+            listNameReq.setHeaderText("New List");
+            ImageView cardView = new ImageView(SwingFXUtils.toFXImage(ImageIO.read(new File("src\\images\\CardBack.png")), null));
+            cardView.setFitWidth(50);
+            cardView.setPreserveRatio(true);
+            listNameReq.setGraphic(cardView);
+            listNameReq.setContentText("Enter the name of the list you want to create");
+
+            Optional<String> listName = listNameReq.showAndWait();
+            if (listName.isPresent()) {
+                if (listName.get().length() <= 8) {
+                    if (listOfLists.get(listName.get()) == null) {
+                        listOfLists.put(listName.get(), new HashMap<>());
+                        addToListComboBoxes(listName.get());
+                        listSelector.setValue(listName.get());
+                    } else {
+                        userBlankEntry("That list already exists!");
+                    }
+                } else {
+                    userBlankEntry("Please make your list name 8 characters maximum");
+                }
+            }
+        } catch (IOException i) {
+            error("IO error", i);
+        } catch (Exception e) {
+            error("Unknown error occurred", e);
+        }
+    }
+
+    /*
+        pre:  remove list button pressed
+        post: a pop-up confirming the deletion is shown then, if selected, the list is deleted
+     */
+    @FXML
+    private void onRemoveListButtonPress() {
+        if (listSelector.getValue() != null) {
+            Alert removalConfirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            removalConfirmation.setTitle("Removing a List");
+            removalConfirmation.setHeaderText(listSelector.getValue());
+            removalConfirmation.setContentText("Do you want to delete the list: " + listSelector.getValue() + "?");
+            try {
+                ImageView cardView = new ImageView(SwingFXUtils.toFXImage(ImageIO.read(new File("src\\images\\CardBack.png")), null));
+                cardView.setFitWidth(50);
+                cardView.setPreserveRatio(true);
+                removalConfirmation.setGraphic(cardView);
+            } catch (IOException i) {
+                error("IO error", i);
+            } catch (Exception e) {
+                error("Unknown error occurred", e);
+            }
+
+            Optional<ButtonType> buttonType = removalConfirmation.showAndWait();
+            if (buttonType.get() == ButtonType.OK) {
+                listOfLists.remove(listSelector.getValue());
+                removeFromBothComboBoxes(listSelector.getValue());
+                //To update currentList
+                onListSelectorPress();
+            }
+        } else {
+            userBlankEntry("Please select a list");
+        }
+    }
+
+    /*
+        this has the same pre and post conditions as undesiredAndDesiredCards
+     */
+    @FXML
+    public void onDesiredButtonPress() {
+        undesiredAndDesiredCards(true);
+    }
+
+    /*
+        this has the same pre and post conditions as undesiredAndDesiredCards
+     */
+    @FXML
+    public void onUndesiredButtonPress() {
+        undesiredAndDesiredCards(false);
+    }
+
+    /*
+        pre:  the desired/undesired button is pressed
+        post: the list selected is placed in either the desired/undesired container, with the number of copies alongside it
+     */
+    private void undesiredAndDesiredCards(boolean desired) {
+        String headerText;
+        String contentText;
+        if (desired) {
+            headerText = "Desired List";
+            contentText = "do you want to see in your opening hand?";
+        } else {
+            headerText = "Undesired List";
+            contentText = "do you want to keep in deck?";
+        }
+
+        if (listSelectorInCalculator.getValue() != null) {
+            if (listOfLists.get(listSelectorInCalculator.getValue()).size() > 0) {
+                TextInputDialog howManyToAdd = new TextInputDialog();
+
+                howManyToAdd.setTitle("Adding List");
+                howManyToAdd.setHeaderText(headerText);
+                Set<Card> listSet = listOfLists.get(listSelectorInCalculator.getValue()).keySet();
+                ImageView cardView = new ImageView(listSet.iterator().next().getCardImg());
+                cardView.setFitWidth(50);
+                cardView.setPreserveRatio(true);
+                howManyToAdd.setGraphic(cardView);
+                howManyToAdd.setContentText("How many copies of cards in \"" + listSelectorInCalculator.getValue() + "\"" + contentText);
+
+                Optional<String> numToAdd = howManyToAdd.showAndWait();
+
+                /*
+                    The first condition is not true when cancel is pressed, which is why no pop up asking to enter number.
+                    All the if statements are just checking valid input
+                */
+                if (numToAdd.isPresent()) {
+                    if (userInputIsInteger(numToAdd.get())) {
+                        if (Integer.parseInt(numToAdd.get()) <= listOfLists.get(listSelectorInCalculator.getValue()).values().stream().reduce(0, Integer::sum)) {
+                            Label label = new Label(numToAdd.get() + "x cards from \"" + listSelectorInCalculator.getValue() + "\"");
+                            label.setWrapText(true);
+                            if (desired) {
+                                desiredCards.getChildren().add(label);
+                            } else {
+                                undesiredCards.getChildren().add(label);
+                            }
+                        } else {
+                            userBlankEntry("Please enter a valid number of cards");
+                        }
+                    } else {
+                        userBlankEntry("Please enter a number");
+                    }
+                }
+            } else {
+                userBlankEntry("Please choose a non-empty list");
+            }
+        }
+    }
+
+    /*
+        pre:  scene initialised
+        post: the card selector filled with the names of the cards in main and side deck
+     */
+    private void fillCardSelector() {
+        Set<Card> cardSet = new HashSet<>();
+        cardSet.addAll(model.getMainDeck().keySet());
+        if (model.getSideDeck() != null) {
+            cardSet.addAll(model.getSideDeck().keySet());
+        }
+        for (Card card : cardSet) {
+            cardSelector.getItems().add(card);
+        }
+    }
+
+    /*
+        function to add a string to both comboboxes, and thus keep them synchronised
+     */
+    private void addToListComboBoxes(String newList) {
+        listSelector.getItems().add(newList);
+        listSelectorInCalculator.getItems().add(newList);
+    }
+
+    /*
+        The same function as above, but for removing
+     */
+    private void removeFromBothComboBoxes(String newList) {
+        listSelector.getItems().remove(newList);
+        listSelectorInCalculator.getItems().remove(newList);
+    }
+
+    /*
+       pre:  input entered by  the user
+       post: returns if that input is an integer
+    */
+    private boolean userInputIsInteger(String input) {
+        Scanner sc = new Scanner(input.trim());
+        if (sc.hasNextInt()) {
+            return true;
+        }
+        return false;
+    }
+
+    /*
+        pre:  user tries to add a blank card, or add to a blank list etc.
+        post: error message pops up, asking the user to select something this time
+     */
+    private void userBlankEntry(String errorMessage) {
+        Alert chooseACard = new Alert(Alert.AlertType.ERROR, errorMessage);
+        chooseACard.show();
+    }
+
+    /*
+     pre:  Error message to be displayed and Exception variable thrown from error
+     post: Prints the error message and the stack trace of the exception variable
+    */
+    private void error(String errorMessage, Exception e) {
+        new Alert(Alert.AlertType.ERROR, errorMessage).show();
+        e.printStackTrace();
     }
 }
