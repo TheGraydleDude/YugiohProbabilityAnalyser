@@ -317,7 +317,42 @@ public class StatisticsView {
      */
     @FXML
     public void onDesiredButtonPress() {
-        undesiredAndDesiredCards(true);
+        if (listSelectorInCalculator.getValue() != null) {
+            if (listOfLists.get(listSelectorInCalculator.getValue()).size() > 0) {
+                TextInputDialog howManyToAdd = new TextInputDialog();
+
+                howManyToAdd.setTitle("Adding List");
+                howManyToAdd.setHeaderText("Desired List");
+                Set<Card> listSet = listOfLists.get(listSelectorInCalculator.getValue()).keySet();
+                ImageView cardView = new ImageView(listSet.iterator().next().getCardImg());
+                cardView.setFitWidth(50);
+                cardView.setPreserveRatio(true);
+                howManyToAdd.setGraphic(cardView);
+                howManyToAdd.setContentText("How many copies of cards in \"" + listSelectorInCalculator.getValue() + "\"do you want to see in your opening hand?");
+
+                Optional<String> numToAdd = howManyToAdd.showAndWait();
+
+                /*
+                    The first condition is not true when cancel is pressed, which is why no pop up asking to enter number.
+                    All the if statements are just checking valid input
+                */
+                if (numToAdd.isPresent()) {
+                    if (userInputIsInteger(numToAdd.get())) {
+                        if (Integer.parseInt(numToAdd.get()) <= listOfLists.get(listSelectorInCalculator.getValue()).values().stream().reduce(0, Integer::sum)) {
+                            Label label = new Label(numToAdd.get() + "x cards from \"" + listSelectorInCalculator.getValue() + "\"");
+                            label.setWrapText(true);
+                            desiredCards.getChildren().add(label);
+                        } else {
+                            userBlankEntry("Please enter a valid number of cards");
+                        }
+                    } else {
+                        userBlankEntry("Please enter a number");
+                    }
+                }
+            } else {
+                userBlankEntry("Please choose a non-empty list");
+            }
+        }
     }
 
     /*
@@ -325,7 +360,7 @@ public class StatisticsView {
      */
     @FXML
     public void onUndesiredButtonPress() {
-        undesiredAndDesiredCards(false);
+        undesiredCards.getChildren().add(new Label(listOfLists.get(listSelector.getValue()).values().stream().reduce(0, Integer::sum) + "x cards from \"" + listSelectorInCalculator.getValue() + "\""));
     }
 
     /*
@@ -344,8 +379,8 @@ public class StatisticsView {
      */
     @FXML
     public void onCalculateButtonPress() {
-        HashMap<HashMap<Card, Integer>, Integer> desiredHashMap = getDesiredUndesiredData(desiredCards.getChildren());
-        HashMap<HashMap<Card, Integer>, Integer> undesiredHashMap = getDesiredUndesiredData(undesiredCards.getChildren());
+        HashMap<HashMap<Card, Integer>, Integer> desiredHashMap = getDesiredUndesiredData(desiredCards.getChildren(), true);
+        HashMap<HashMap<Card, Integer>, Integer> undesiredHashMap = getDesiredUndesiredData(undesiredCards.getChildren(), false);
 
         if (desiredHashMap.size() > 0 || undesiredHashMap.size() > 0) {
             int numOfCardsInHand = 5;
@@ -375,12 +410,22 @@ public class StatisticsView {
                     cardSet.addAll(list.keySet());
                 }
 
-                double probabilityOfDesired = calculateProb(desiredHashMap,numOfCardsInHand, numOfCardsInHand);
-                double probabilityOfUndesiredGivenDesired = calculateProb(undesiredHashMap, model.getMainDeck().size() - numOfCardsInHand - numOfDesired, model.getMainDeck().size() -numOfCardsInHand - numOfDesired);
-                /*
+                double probabilityOfDesired = 0;
+                double probabilityOfUndesiredGivenDesired = 0;
+                double totalProbability = 0;
+                if(desiredHashMap.size() > 0){
+                    probabilityOfDesired = calculateProb(desiredHashMap,numOfCardsInHand, numOfCardsInHand);
+                    totalProbability = probabilityOfDesired;
+                } else if (undesiredHashMap.size() > 0) {
+                    probabilityOfUndesiredGivenDesired = 1 - calculateProb(undesiredHashMap, numOfCardsInHand, numOfCardsInHand);
+                    totalProbability = probabilityOfUndesiredGivenDesired;
+                }
+                if(desiredHashMap.size() > 0 && undesiredHashMap.size() > 0){
+                    /*
                     P(A n B) = P(A | B) * P(B)
                  */
-                double totalProbability = probabilityOfUndesiredGivenDesired * probabilityOfDesired;
+                    totalProbability = probabilityOfUndesiredGivenDesired * probabilityOfDesired;
+                }
                 if (totalProbability > 0) {
                     Alert probabilityPopUp = new Alert(Alert.AlertType.INFORMATION);
 
@@ -458,7 +503,7 @@ public class StatisticsView {
              */
             return hypergeometric(model.getMainDeck().values().stream().reduce(0, Integer::sum) - (handSize - adjustedHandSize), adjustedHandSize, B.values().stream().reduce(0, Integer::sum), numOfB);
         } else {
-            return (calculateProb(listsInA, handSize, handSize-numOfB) * hypergeometric(model.getMainDeck().values().stream().reduce(0, Integer::sum) - (handSize - adjustedHandSize), adjustedHandSize, B.values().stream().reduce(0, Integer::sum), numOfB));
+            return (calculateProb(listsInA, handSize, handSize - numOfB) * hypergeometric(model.getMainDeck().values().stream().reduce(0, Integer::sum) - (handSize - adjustedHandSize), adjustedHandSize, B.values().stream().reduce(0, Integer::sum), numOfB));
         }
     }
 
@@ -486,76 +531,22 @@ public class StatisticsView {
         pre:  calculate button pressed
         post: data from the desired/undesired labels are fetched
      */
-    private HashMap<HashMap<Card, Integer>, Integer> getDesiredUndesiredData(ObservableList<Node> labels) {
+    private HashMap<HashMap<Card, Integer>, Integer> getDesiredUndesiredData(ObservableList<Node> labels, boolean desired) {
         HashMap<HashMap<Card, Integer>, Integer> toReturn = new HashMap<>();
 
         if (labels != null) {
             for (Node label : labels) {
                 String labelText = ((Label) label).getText();
-                int numOfCards = Integer.parseInt(labelText.split("x")[0]);
+                int numOfCards = 1;
+                if(desired){
+                    numOfCards = Integer.parseInt(labelText.split("x")[0]);
+                }
                 String listName = labelText.split("\"")[1];
                 toReturn.put(listOfLists.get(listName), numOfCards);
             }
         }
 
         return toReturn;
-    }
-
-    /*
-        pre:  the desired/undesired button is pressed
-        post: the list selected is placed in either the desired/undesired container, with the number of copies alongside it
-     */
-    private void undesiredAndDesiredCards(boolean desired) {
-        String headerText;
-        String contentText;
-        if (desired) {
-            headerText = "Desired List";
-            contentText = "do you want to see in your opening hand?";
-        } else {
-            headerText = "Undesired List";
-            contentText = "do you want to keep in deck?";
-        }
-
-        if (listSelectorInCalculator.getValue() != null) {
-            if (listOfLists.get(listSelectorInCalculator.getValue()).size() > 0) {
-                TextInputDialog howManyToAdd = new TextInputDialog();
-
-                howManyToAdd.setTitle("Adding List");
-                howManyToAdd.setHeaderText(headerText);
-                Set<Card> listSet = listOfLists.get(listSelectorInCalculator.getValue()).keySet();
-                ImageView cardView = new ImageView(listSet.iterator().next().getCardImg());
-                cardView.setFitWidth(50);
-                cardView.setPreserveRatio(true);
-                howManyToAdd.setGraphic(cardView);
-                howManyToAdd.setContentText("How many copies of cards in \"" + listSelectorInCalculator.getValue() + "\"" + contentText);
-
-                Optional<String> numToAdd = howManyToAdd.showAndWait();
-
-                /*
-                    The first condition is not true when cancel is pressed, which is why no pop up asking to enter number.
-                    All the if statements are just checking valid input
-                */
-                if (numToAdd.isPresent()) {
-                    if (userInputIsInteger(numToAdd.get())) {
-                        if (Integer.parseInt(numToAdd.get()) <= listOfLists.get(listSelectorInCalculator.getValue()).values().stream().reduce(0, Integer::sum)) {
-                            Label label = new Label(numToAdd.get() + "x cards from \"" + listSelectorInCalculator.getValue() + "\"");
-                            label.setWrapText(true);
-                            if (desired) {
-                                desiredCards.getChildren().add(label);
-                            } else {
-                                undesiredCards.getChildren().add(label);
-                            }
-                        } else {
-                            userBlankEntry("Please enter a valid number of cards");
-                        }
-                    } else {
-                        userBlankEntry("Please enter a number");
-                    }
-                }
-            } else {
-                userBlankEntry("Please choose a non-empty list");
-            }
-        }
     }
 
     /*
